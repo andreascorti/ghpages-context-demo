@@ -42,13 +42,21 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download PR metadata artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: pr-meta
+          path: pr-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Resolve PR number and head SHA
         id: pr
         run: |
           set -euo pipefail
-          NUM="$(cat preview/.pr-number 2>/dev/null || true)"
+          NUM="$(cat pr-meta/pr-number.txt 2>/dev/null || true)"
           NUM="$(echo -n "$NUM" | tr -d '[:space:]')"
-          SHA="$(cat preview/.pr-head-sha 2>/dev/null || true)"
+          SHA="$(cat pr-meta/pr-head-sha.txt 2>/dev/null || true)"
           SHA="$(echo -n "$SHA" | tr -d '[:space:]')"
           if ! echo "$NUM" | grep -qE '^[0-9]+$'; then
             # A workflow_run can fire for a CI run whose artifact carries no PR number (stale or
@@ -61,10 +69,6 @@ jobs:
             echo "number=$NUM" >> "$GITHUB_OUTPUT"
             echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Remove marker files from published output
-        if: steps.pr.outputs.skip == 'false'
-        run: rm -f preview/.pr-number preview/.pr-head-sha
 
       # Publish with plain git (no third-party action). Replace ONLY the pr-<n>/ subfolder;
       # root prod, /int/ and sibling previews are never touched.
