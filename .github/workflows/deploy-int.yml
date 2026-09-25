@@ -17,9 +17,9 @@ jobs:
   deploy-int:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -51,9 +51,6 @@ jobs:
           }
           JSON
 
-      - name: Inject SPA base into 404 fallback
-        run: sed -i "s#__SPA_BASE__#${{ steps.base.outputs.href }}#g" public/404.html
-
       - name: Build
         run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
 
@@ -65,6 +62,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_DIR: ./dist/ghpages-context-demo/browser
           TARGET: int
+          BASE_PREFIX: ${{ steps.base.outputs.prefix }}
         run: |
           set -euo pipefail
           git config --global user.name "github-actions[bot]"
@@ -81,11 +79,16 @@ jobs:
           rm -rf "gh-pages-publish/${TARGET}"
           mkdir -p "gh-pages-publish/${TARGET}"
           cp -R "${BUILD_DIR}/." "gh-pages-publish/${TARGET}/"
+          # Publish the context-aware ROOT 404. GitHub Pages serves only the site-root 404 for
+          # any miss (including /int/... and /pr-N/...), so this router lives at the branch root
+          # and dispatches to the right context index. Refreshed here so deep links work before
+          # any production release exists. __REPO_BASE__ = the site base prefix.
+          sed "s#__REPO_BASE__#${BASE_PREFIX}#g" "${GITHUB_WORKSPACE}/.github/pages/root-404.html" > gh-pages-publish/404.html
           cd gh-pages-publish
           git add -A
           if git diff --cached --quiet; then
             echo "No changes to publish."
           else
-            git commit -m "deploy: integration ${GITHUB_SHA} to /int/"
+            git commit -m "deploy: integration ${GITHUB_SHA} to /int/ (+ root 404 router)"
             git push origin gh-pages
           fi

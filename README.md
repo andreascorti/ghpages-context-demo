@@ -21,9 +21,17 @@ All targets coexist on the same `gh-pages` branch. Every deploy uses `keep_files
 
 An Angular SPA needs `<base href>` to match its serving path. Rather than hard-coding it, each workflow passes `--base-href` at build time, so the same source deploys to any context. The app reads the deployed base href (and a CI-generated `build-info.json`) at runtime and shows the environment, context path, git ref, commit, and PR number.
 
-### SPA deep links
+### SPA deep links (single root 404 router)
 
-`public/404.html` + a restore snippet in `index.html` (rafgraph technique) let client-side routes survive a hard refresh under any context path.
+GitHub Pages honours only ONE custom 404 — the one at the **site root** — for every miss on the
+site, including misses under `/int/...` and `/pr-N/...`. A nested `int/404.html` is not used. So a
+single context-aware router lives at the branch root (`404.html`, built from
+`.github/pages/root-404.html` with the base prefix injected). On a hard refresh of e.g.
+`/<repo>/int/items`, GitHub serves that root 404, which inspects the path, finds the context folder
+(`int` / `pr-<n>` / none = production), and redirects to that context's `index.html` with the
+remaining route encoded. `index.html`'s restore snippet (rafgraph technique) turns it back into the
+real URL for the Angular router. The root 404 is (re)published by the production and integration
+deploys, and written-if-missing by the PR preview deploy so previews resolve standalone.
 
 ## Local development
 
