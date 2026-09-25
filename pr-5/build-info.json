@@ -1,0 +1,8 @@
+{
+  "environment": "pr-preview",
+  "contextPath": "/ghpages-context-demo/pr-5/",
+  "gitRef": "fix/pr-meta-artifact",
+  "gitSha": "476bb90aaded326c4fa88b35afc93ec2051756a0",
+  "builtAt": "2026-09-25T12:58:11Z",
+  "prNumber": "5"
+}
