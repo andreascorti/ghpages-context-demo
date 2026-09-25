@@ -1,8 +1,8 @@
 {
   "environment": "integration",
-  "contextPath": "/int/",
+  "contextPath": "/ghpages-context-demo/int/",
   "gitRef": "main",
-  "gitSha": "c2f1cfd2b9ab4bab5b3caa55bae0b2173bc001c6",
-  "builtAt": "2026-09-25T08:53:39Z",
+  "gitSha": "81f9856bd8555ec7fb0b984dbfcc2ec13e14c4e9",
+  "builtAt": "2026-09-25T09:09:48Z",
   "prNumber": ""
 }
