@@ -51,15 +51,26 @@ jobs:
       - name: Build
         run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
 
-      - name: Record PR number for the deploy workflow
-        run: echo "${{ github.event.pull_request.number }}" > ./dist/ghpages-context-demo/browser/.pr-number
-
-      - name: Record PR head SHA for the deploy status
-        run: echo "${{ github.event.pull_request.head.sha }}" > ./dist/ghpages-context-demo/browser/.pr-head-sha
+      - name: Record PR metadata for the deploy workflow
+        # In a SEPARATE dir (not the build output) with NON-hidden filenames. upload-artifact v4+
+        # excludes hidden files by default, so dotfile markers inside the build dir were silently
+        # dropped, arriving empty at the deploy. Plain files in their own artifact avoid both the
+        # hidden-file exclusion and any risk of the markers shipping to gh-pages.
+        run: |
+          mkdir -p pr-meta
+          echo "${{ github.event.pull_request.number }}" > pr-meta/pr-number.txt
+          echo "${{ github.event.pull_request.head.sha }}" > pr-meta/pr-head-sha.txt
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
         with:
           name: pr-preview
           path: ./dist/ghpages-context-demo/browser
+          retention-days: 5
+
+      - name: Upload PR metadata artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-meta
+          path: ./pr-meta
           retention-days: 5
