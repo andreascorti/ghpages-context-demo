@@ -54,6 +54,9 @@ jobs:
       - name: Record PR number for the deploy workflow
         run: echo "${{ github.event.pull_request.number }}" > ./dist/ghpages-context-demo/browser/.pr-number
 
+      - name: Record PR head SHA for the deploy status
+        run: echo "${{ github.event.pull_request.head.sha }}" > ./dist/ghpages-context-demo/browser/.pr-head-sha
+
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
         with:

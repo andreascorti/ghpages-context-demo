@@ -12,6 +12,7 @@ permissions:
   contents: write # push to gh-pages
   pull-requests: write # comment on the PR
   actions: read # download the artifact
+  statuses: write # post the preview-deploy commit status on the PR
 
 concurrency:
   group: gh-pages-deploy
@@ -41,24 +42,34 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve PR number
+      - name: Resolve PR number and head SHA
         id: pr
         run: |
           set -euo pipefail
           NUM="$(cat preview/.pr-number 2>/dev/null || true)"
           NUM="$(echo -n "$NUM" | tr -d '[:space:]')"
+          SHA="$(cat preview/.pr-head-sha 2>/dev/null || true)"
+          SHA="$(echo -n "$SHA" | tr -d '[:space:]')"
           if ! echo "$NUM" | grep -qE '^[0-9]+$'; then
-            echo "::error::PR number missing or invalid ('$NUM') — refusing to deploy a pr-<n> folder without a number."
-            exit 1
+            # A workflow_run can fire for a CI run whose artifact carries no PR number (stale or
+            # non-PR run). That is not an error — skip cleanly so the run is green, not red.
+            echo "::notice::No numeric PR number in artifact ('$NUM') — skipping preview deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "number=" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "number=$NUM" >> "$GITHUB_OUTPUT"
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           fi
-          echo "number=$NUM" >> "$GITHUB_OUTPUT"
 
-      - name: Remove marker file from published output
-        run: rm -f preview/.pr-number
+      - name: Remove marker files from published output
+        if: steps.pr.outputs.skip == 'false'
+        run: rm -f preview/.pr-number preview/.pr-head-sha
 
       # Publish with plain git (no third-party action). Replace ONLY the pr-<n>/ subfolder;
       # root prod, /int/ and sibling previews are never touched.
       - name: Publish to gh-pages:/pr-<n>/
+        if: steps.pr.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_DIR: ./preview
@@ -98,6 +109,7 @@ jobs:
 
       - name: Compute preview URL
         id: url
+        if: steps.pr.outputs.skip == 'false'
         run: |
           # Host + base prefix mirror the build config so the commented link is always correct:
           #   default (project page): https://<owner>.github.io/<repo>/pr-<n>/
@@ -111,6 +123,7 @@ jobs:
           echo "url=${HOST}${PREFIX}pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview link on the PR (create or update)
+        if: steps.pr.outputs.skip == 'false'
         uses: actions/github-script@v9
         with:
           script: |
@@ -140,3 +153,22 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
             }
+
+      - name: Post preview deploy status on the PR commit
+        if: steps.pr.outputs.skip == 'false' && steps.pr.outputs.sha != ''
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // A workflow_run job does not attach its own check to the PR, so we set a COMMIT
+            // STATUS on the PR head SHA. It appears in the PR's checks list with a link to the
+            // live preview — a run check tied to the deploy, distinct from the comment.
+            const { owner, repo } = context.repo;
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: '${{ steps.pr.outputs.sha }}',
+              state: 'success',
+              context: 'preview / deploy',
+              target_url: '${{ steps.url.outputs.url }}',
+              description: 'Preview deployed',
+            });
