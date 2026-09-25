@@ -1,0 +1,55 @@
+name: Deploy production (root)
+
+# Production is served at the site ROOT (no dedicated folder), published from release
+# branches with immutable releases. A push to release/** OR a semver tag triggers it.
+on:
+  push:
+    branches: ['release/**']
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Write build-info.json
+        run: |
+          cat > public/build-info.json <<JSON
+          {
+            "environment": "production",
+            "contextPath": "/",
+            "gitRef": "${{ github.ref_name }}",
+            "gitSha": "${{ github.sha }}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "prNumber": ""
+          }
+          JSON
+
+      - name: Build (base-href=/)
+        run: npx ng build --configuration production --base-href /
+
+      - name: Deploy to gh-pages root
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist/ghpages-context-demo/browser
+          # No destination_dir => publish at root.
+          # keep_files is ESSENTIAL: it preserves /int/ and all /pr-*/ subfolders that
+          # live on the same gh-pages branch. Without it, a prod deploy wipes them.
+          keep_files: true
+          commit_message: 'deploy: production ${{ github.ref_name }} (${{ github.sha }})'

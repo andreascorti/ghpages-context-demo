@@ -1,0 +1,75 @@
+name: PR preview deploy + comment
+
+# Triggered when "PR CI (build preview artifact)" finishes. Runs in the BASE repo context
+# with write permissions, so it works even for fork PRs (the pull_request build itself is
+# unprivileged). Downloads the artifact, publishes it to gh-pages:/pr-<n>/, and comments.
+on:
+  workflow_run:
+    workflows: ['PR CI (build preview artifact)']
+    types: [completed]
+
+permissions:
+  contents: write # push to gh-pages
+  pull-requests: write # comment on the PR
+  actions: read # download the artifact
+
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-preview:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download preview artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-preview
+          path: preview
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve PR number
+        id: pr
+        run: echo "number=$(cat preview/.pr-number)" >> "$GITHUB_OUTPUT"
+
+      - name: Remove marker file from published output
+        run: rm -f preview/.pr-number
+
+      - name: Deploy to gh-pages:/pr-<n>/
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./preview
+          destination_dir: pr-${{ steps.pr.outputs.number }}
+          keep_files: true # never touch root (prod), /int/, or sibling previews
+          commit_message: 'deploy: preview pr-${{ steps.pr.outputs.number }}'
+
+      - name: Compute preview URL
+        id: url
+        run: |
+          # <owner>.github.io/<repo>/pr-<n>/ for project pages; <owner>.github.io/pr-<n>/ for user pages.
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          if [ "$REPO" = "${OWNER}.github.io" ]; then
+            echo "url=https://${OWNER}.github.io/pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=https://${OWNER}.github.io/${REPO}/pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment preview link on the PR (create or update)
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ steps.pr.outputs.number }}
+          header: pr-preview
+          message: |
+            🚀 **Preview deployed** for this PR.
+
+            | | |
+            |---|---|
+            | Environment | `pr-preview` |
+            | Context path | `/pr-${{ steps.pr.outputs.number }}/` |
+            | URL | ${{ steps.url.outputs.url }} |
+
+            Updated on each push. Removed automatically when the PR closes.

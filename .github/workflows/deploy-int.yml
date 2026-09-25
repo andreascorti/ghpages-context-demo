@@ -1,0 +1,54 @@
+name: Deploy integration (/int/)
+
+# Every commit on main publishes to the /int/ context path on GitHub Pages.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # push to the gh-pages branch
+
+concurrency:
+  # Serialize gh-pages writes so int and release/pr deploys never race the branch.
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-int:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Write build-info.json
+        run: |
+          cat > public/build-info.json <<JSON
+          {
+            "environment": "integration",
+            "contextPath": "/int/",
+            "gitRef": "${{ github.ref_name }}",
+            "gitSha": "${{ github.sha }}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "prNumber": ""
+          }
+          JSON
+
+      - name: Build (base-href=/int/)
+        run: npx ng build --configuration production --base-href /int/
+
+      # SPA fallback: copy index.html to 404.html would break other contexts, so we ship
+      # our own public/404.html (context-preserving) which is emitted by the build assets.
+      - name: Deploy to gh-pages:/int
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist/ghpages-context-demo/browser
+          destination_dir: int
+          keep_files: true # never touch root (prod), /pr-* previews
+          commit_message: 'deploy: integration ${{ github.sha }} to /int/'

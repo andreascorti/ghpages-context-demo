@@ -1,0 +1,55 @@
+name: PR CI (build preview artifact)
+
+# Runs on every PR. Builds the app for a /pr-<number>/ context path and uploads it as an
+# artifact. Deliberately has NO write permissions so it is safe for fork PRs; the actual
+# gh-pages deploy + PR comment happens in pr-preview-deploy.yml via workflow_run.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build check & unit tests
+        run: |
+          npx ng build --configuration development >/dev/null # fast type/build check
+          npx ng test # Vitest builder runs once and exits under CI
+
+      - name: Write build-info.json
+        run: |
+          cat > public/build-info.json <<JSON
+          {
+            "environment": "pr-preview",
+            "contextPath": "/pr-${{ github.event.pull_request.number }}/",
+            "gitRef": "${{ github.head_ref }}",
+            "gitSha": "${{ github.event.pull_request.head.sha }}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "prNumber": "${{ github.event.pull_request.number }}"
+          }
+          JSON
+
+      - name: Build (base-href=/pr-<n>/)
+        run: npx ng build --configuration production --base-href "/pr-${{ github.event.pull_request.number }}/"
+
+      - name: Record PR number for the deploy workflow
+        run: echo "${{ github.event.pull_request.number }}" > ./dist/ghpages-context-demo/browser/.pr-number
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-preview
+          path: ./dist/ghpages-context-demo/browser
+          retention-days: 5
