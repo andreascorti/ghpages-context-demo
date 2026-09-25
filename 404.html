@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script>
+      // Context-aware SPA fallback served at the SITE ROOT.
+      //
+      // GitHub Pages only honours ONE custom 404 — the one at the repository root — for any miss
+      // under the whole site. A nested int/404.html is NOT used for /int/items. So this single
+      // root 404 must route every context:
+      //   /<repo>/items            -> production build at /<repo>/index.html
+      //   /<repo>/int/items        -> integration build at /<repo>/int/index.html
+      //   /<repo>/pr-5/items/42    -> preview build   at /<repo>/pr-5/index.html
+      //
+      // /ghpages-context-demo/ is replaced at build time with "/<repo>/" (or "/" under a custom domain).
+      // We find the context folder (int | pr-N) right after it, redirect to that folder's
+      // index.html, and hand the remaining route to it as an encoded query. index.html's restore
+      // snippet turns that back into the real URL for the Angular router.
+      (function () {
+        var l = window.location;
+        var repoBase = '/ghpages-context-demo/'; // e.g. "/ghpages-context-demo/" or "/"
+        var path = l.pathname;
+        var rest = path.indexOf(repoBase) === 0 ? path.slice(repoBase.length) : path.replace(/^\//, '');
+        // First segment after the repo base decides the context.
+        var segs = rest.split('/');
+        var context = '';
+        if (segs[0] === 'int' || /^pr-\d+$/.test(segs[0])) {
+          context = segs.shift() + '/';
+        }
+        var appBase = repoBase + context; // the context's index.html lives here
+        var route = segs.join('/');
+        l.replace(
+          l.protocol +
+            '//' +
+            l.hostname +
+            (l.port ? ':' + l.port : '') +
+            appBase +
+            '?/' +
+            route.replace(/&/g, '~and~') +
+            (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+            l.hash
+        );
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
