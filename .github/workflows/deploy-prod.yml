@@ -27,12 +27,19 @@ jobs:
 
       - run: npm ci
 
+      - name: Resolve base prefix
+        id: base
+        run: |
+          PREFIX="${{ vars.PAGES_BASE_PREFIX }}"
+          if [ -z "$PREFIX" ]; then PREFIX="/${{ github.event.repository.name }}/"; fi
+          echo "href=$PREFIX" >> "$GITHUB_OUTPUT"
+
       - name: Write build-info.json
         run: |
           cat > public/build-info.json <<JSON
           {
             "environment": "production",
-            "contextPath": "/",
+            "contextPath": "${{ steps.base.outputs.href }}",
             "gitRef": "${{ github.ref_name }}",
             "gitSha": "${{ github.sha }}",
             "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -40,16 +47,41 @@ jobs:
           }
           JSON
 
-      - name: Build (base-href=/)
-        run: npx ng build --configuration production --base-href /
+      - name: Inject SPA base into 404 fallback
+        run: sed -i "s#__SPA_BASE__#${{ steps.base.outputs.href }}#g" public/404.html
 
-      - name: Deploy to gh-pages root
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/ghpages-context-demo/browser
-          # No destination_dir => publish at root.
-          # keep_files is ESSENTIAL: it preserves /int/ and all /pr-*/ subfolders that
-          # live on the same gh-pages branch. Without it, a prod deploy wipes them.
-          keep_files: true
-          commit_message: 'deploy: production ${{ github.ref_name }} (${{ github.sha }})'
+      - name: Build (production lives at the site root = base prefix)
+        run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
+
+      # Publish with plain git (no third-party action). Production lives at the branch ROOT.
+      # We replace only the root-level FILES (index.html, JS, css, 404.html, ...) and never
+      # delete directories, so /int/ and every /pr-*/ preview survive a production deploy.
+      - name: Publish to gh-pages root
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_DIR: ./dist/ghpages-context-demo/browser
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf gh-pages-publish
+          if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch "$REMOTE" gh-pages-publish
+          else
+            git clone "$REMOTE" gh-pages-publish
+            (cd gh-pages-publish && git checkout --orphan gh-pages && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          # Remove existing root-level files only (keep .git and all subdirectories intact).
+          find gh-pages-publish -maxdepth 1 -type f ! -name '.nojekyll' -delete
+          touch gh-pages-publish/.nojekyll
+          # Copy build output into root (files land at root; the build has no subdirs to clash).
+          cp -R "${BUILD_DIR}/." "gh-pages-publish/"
+          cd gh-pages-publish
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "deploy: production ${GITHUB_REF_NAME} (${GITHUB_SHA})"
+            git push origin gh-pages
+          fi

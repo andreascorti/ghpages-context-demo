@@ -26,12 +26,24 @@ jobs:
 
       - run: npm ci
 
+      # Base prefix = where the Pages SITE root lives.
+      #   Project page (default): /<repo>/    e.g. /ghpages-context-demo/
+      #   Custom domain or user page: set repo variable PAGES_BASE_PREFIX to "/"
+      # Switching to a custom domain later is a one-line change: set that variable to "/".
+      - name: Resolve base prefix
+        id: base
+        run: |
+          PREFIX="${{ vars.PAGES_BASE_PREFIX }}"
+          if [ -z "$PREFIX" ]; then PREFIX="/${{ github.event.repository.name }}/"; fi
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+          echo "href=${PREFIX}int/" >> "$GITHUB_OUTPUT"
+
       - name: Write build-info.json
         run: |
           cat > public/build-info.json <<JSON
           {
             "environment": "integration",
-            "contextPath": "/int/",
+            "contextPath": "${{ steps.base.outputs.href }}",
             "gitRef": "${{ github.ref_name }}",
             "gitSha": "${{ github.sha }}",
             "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -39,16 +51,41 @@ jobs:
           }
           JSON
 
-      - name: Build (base-href=/int/)
-        run: npx ng build --configuration production --base-href /int/
+      - name: Inject SPA base into 404 fallback
+        run: sed -i "s#__SPA_BASE__#${{ steps.base.outputs.href }}#g" public/404.html
 
-      # SPA fallback: copy index.html to 404.html would break other contexts, so we ship
-      # our own public/404.html (context-preserving) which is emitted by the build assets.
-      - name: Deploy to gh-pages:/int
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/ghpages-context-demo/browser
-          destination_dir: int
-          keep_files: true # never touch root (prod), /pr-* previews
-          commit_message: 'deploy: integration ${{ github.sha }} to /int/'
+      - name: Build
+        run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
+
+      # Publish with plain git (no third-party action). We check out the gh-pages branch,
+      # replace ONLY the int/ subfolder, and push. Sibling paths (root prod, pr-*/) are never
+      # touched, which is the same guarantee peaceiris' keep_files gave us.
+      - name: Publish to gh-pages:/int
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_DIR: ./dist/ghpages-context-demo/browser
+          TARGET: int
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf gh-pages-publish
+          if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch "$REMOTE" gh-pages-publish
+          else
+            git clone "$REMOTE" gh-pages-publish
+            (cd gh-pages-publish && git checkout --orphan gh-pages && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          touch gh-pages-publish/.nojekyll
+          rm -rf "gh-pages-publish/${TARGET}"
+          mkdir -p "gh-pages-publish/${TARGET}"
+          cp -R "${BUILD_DIR}/." "gh-pages-publish/${TARGET}/"
+          cd gh-pages-publish
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "deploy: integration ${GITHUB_SHA} to /int/"
+            git push origin gh-pages
+          fi

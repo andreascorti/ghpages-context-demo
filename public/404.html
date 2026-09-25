@@ -4,32 +4,32 @@
     <meta charset="utf-8" />
     <title>Redirecting…</title>
     <script>
-      // GitHub Pages SPA fallback.
-      // GH Pages serves this 404.html for any unknown path. We rewrite the URL back to the
-      // app's index while preserving the full path (including the context path such as
-      // /int/ or /pr-123/) so the Angular router can handle client-side routes on refresh.
-      // Technique adapted from rafgraph/spa-github-pages.
+      // GitHub Pages SPA fallback for a context-path deploy.
+      //
+      // Each context (production /<repo>/, integration /<repo>/int/, preview /<repo>/pr-N/) is
+      // its own build with its own <base href>. GH Pages serves the NEAREST 404.html up the tree,
+      // so a hard refresh of /<repo>/int/items/42 is served by /<repo>/int/404.html.
+      //
+      // __SPA_BASE__ is replaced at build time with that context's base path (same value as the
+      // Angular --base-href, e.g. "/ghpages-context-demo/int/"). We strip it off the requested
+      // path, hand the remainder to index.html as an encoded query, and index.html restores it.
+      // Adapted from rafgraph/spa-github-pages, generalized for nested context folders.
       (function () {
         var l = window.location;
-        var segmentsToKeep = 0; // user/org pages served at domain root; adjust for project pages
+        var base = '__SPA_BASE__'; // e.g. "/ghpages-context-demo/int/"
+        var path = l.pathname;
+        // Everything after the base is the in-app route.
+        var route = path.indexOf(base) === 0 ? path.slice(base.length) : path.replace(/^\//, '');
         l.replace(
           l.protocol +
             '//' +
             l.hostname +
             (l.port ? ':' + l.port : '') +
-            l.pathname
-              .split('/')
-              .slice(0, 1 + segmentsToKeep)
-              .join('/') +
-            '/?/' +
-            l.pathname
-              .slice(1)
-              .split('/')
-              .slice(segmentsToKeep)
-              .join('/')
-              .replace(/&/g, '~and~') +
+            base +
+            '?/' +
+            route.replace(/&/g, '~and~') +
             (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-            l.hash
+            l.hash,
         );
       })();
     </script>
