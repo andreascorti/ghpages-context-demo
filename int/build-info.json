@@ -1,0 +1,8 @@
+{
+  "environment": "integration",
+  "contextPath": "/int/",
+  "gitRef": "main",
+  "gitSha": "c2f1cfd2b9ab4bab5b3caa55bae0b2173bc001c6",
+  "builtAt": "2026-09-25T08:53:39Z",
+  "prNumber": ""
+}
