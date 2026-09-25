@@ -19,7 +19,12 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: github.event.workflow_run.conclusion == 'success'
+    # Only for CI runs that were themselves triggered by a pull_request. A workflow_run can
+    # fire for other events (e.g. PR CI invoked outside a PR), where there is no PR number to
+    # deploy or comment on — those must not reach the deploy/comment steps.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     # Maintainer approval gate: this environment must have "Required reviewers" configured
     # in Settings -> Environments -> pr-preview. The job PAUSES here until a maintainer
@@ -29,7 +34,7 @@ jobs:
       url: ${{ steps.url.outputs.url }}
     steps:
       - name: Download preview artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: pr-preview
           path: preview
@@ -38,7 +43,15 @@ jobs:
 
       - name: Resolve PR number
         id: pr
-        run: echo "number=$(cat preview/.pr-number)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          NUM="$(cat preview/.pr-number 2>/dev/null || true)"
+          NUM="$(echo -n "$NUM" | tr -d '[:space:]')"
+          if ! echo "$NUM" | grep -qE '^[0-9]+$'; then
+            echo "::error::PR number missing or invalid ('$NUM') — refusing to deploy a pr-<n> folder without a number."
+            exit 1
+          fi
+          echo "number=$NUM" >> "$GITHUB_OUTPUT"
 
       - name: Remove marker file from published output
         run: rm -f preview/.pr-number
@@ -50,11 +63,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_DIR: ./preview
           TARGET: pr-${{ steps.pr.outputs.number }}
+          PAGES_BASE_PREFIX: ${{ vars.PAGES_BASE_PREFIX }}
         run: |
           set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          BASE_PREFIX="${PAGES_BASE_PREFIX:-/${GITHUB_REPOSITORY##*/}/}"
           rm -rf gh-pages-publish
           if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null 2>&1; then
             git clone --branch gh-pages --single-branch "$REMOTE" gh-pages-publish
@@ -66,6 +81,12 @@ jobs:
           rm -rf "gh-pages-publish/${TARGET}"
           mkdir -p "gh-pages-publish/${TARGET}"
           cp -R "${BUILD_DIR}/." "gh-pages-publish/${TARGET}/"
+          # Ensure the context-aware root 404 exists so this preview's deep links resolve even if
+          # no int/prod deploy has run yet. Only WRITE IF MISSING — never clobber a prod-published
+          # root 404 (prod owns it; this is just a safety net for a preview-only site).
+          if [ ! -f gh-pages-publish/404.html ]; then
+            sed "s#__REPO_BASE__#${BASE_PREFIX}#g" "${GITHUB_WORKSPACE}/.github/pages/root-404.html" > gh-pages-publish/404.html
+          fi
           cd gh-pages-publish
           git add -A
           if git diff --cached --quiet; then
@@ -90,7 +111,7 @@ jobs:
           echo "url=${HOST}${PREFIX}pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview link on the PR (create or update)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = Number('${{ steps.pr.outputs.number }}');
