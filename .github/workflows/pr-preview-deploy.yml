@@ -43,14 +43,37 @@ jobs:
       - name: Remove marker file from published output
         run: rm -f preview/.pr-number
 
-      - name: Deploy to gh-pages:/pr-<n>/
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./preview
-          destination_dir: pr-${{ steps.pr.outputs.number }}
-          keep_files: true # never touch root (prod), /int/, or sibling previews
-          commit_message: 'deploy: preview pr-${{ steps.pr.outputs.number }}'
+      # Publish with plain git (no third-party action). Replace ONLY the pr-<n>/ subfolder;
+      # root prod, /int/ and sibling previews are never touched.
+      - name: Publish to gh-pages:/pr-<n>/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_DIR: ./preview
+          TARGET: pr-${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf gh-pages-publish
+          if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch "$REMOTE" gh-pages-publish
+          else
+            git clone "$REMOTE" gh-pages-publish
+            (cd gh-pages-publish && git checkout --orphan gh-pages && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          touch gh-pages-publish/.nojekyll
+          rm -rf "gh-pages-publish/${TARGET}"
+          mkdir -p "gh-pages-publish/${TARGET}"
+          cp -R "${BUILD_DIR}/." "gh-pages-publish/${TARGET}/"
+          cd gh-pages-publish
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "deploy: preview ${TARGET}"
+            git push origin gh-pages
+          fi
 
       - name: Compute preview URL
         id: url
@@ -67,17 +90,32 @@ jobs:
           echo "url=${HOST}${PREFIX}pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview link on the PR (create or update)
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: actions/github-script@v7
         with:
-          number: ${{ steps.pr.outputs.number }}
-          header: pr-preview
-          message: |
-            🚀 **Preview deployed** for this PR.
+          script: |
+            const prNumber = Number('${{ steps.pr.outputs.number }}');
+            const url = '${{ steps.url.outputs.url }}';
+            const marker = '<!-- pr-preview -->';
+            const body = [
+              marker,
+              '🚀 **Preview deployed** for this PR.',
+              '',
+              '| | |',
+              '|---|---|',
+              '| Environment | `pr-preview` |',
+              `| Context path | \`${url}\` |`,
+              `| URL | ${url} |`,
+              '',
+              'Updated on each push. Removed automatically when the PR closes.',
+            ].join('\n');
 
-            | | |
-            |---|---|
-            | Environment | `pr-preview` |
-            | Context path | `/pr-${{ steps.pr.outputs.number }}/` |
-            | URL | ${{ steps.url.outputs.url }} |
-
-            Updated on each push. Removed automatically when the PR closes.
+            const { owner, repo } = context.repo;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number: prNumber, per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+            }
