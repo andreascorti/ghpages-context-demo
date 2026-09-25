@@ -26,12 +26,24 @@ jobs:
 
       - run: npm ci
 
+      # Base prefix = where the Pages SITE root lives.
+      #   Project page (default): /<repo>/    e.g. /ghpages-context-demo/
+      #   Custom domain or user page: set repo variable PAGES_BASE_PREFIX to "/"
+      # Switching to a custom domain later is a one-line change: set that variable to "/".
+      - name: Resolve base prefix
+        id: base
+        run: |
+          PREFIX="${{ vars.PAGES_BASE_PREFIX }}"
+          if [ -z "$PREFIX" ]; then PREFIX="/${{ github.event.repository.name }}/"; fi
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+          echo "href=${PREFIX}int/" >> "$GITHUB_OUTPUT"
+
       - name: Write build-info.json
         run: |
           cat > public/build-info.json <<JSON
           {
             "environment": "integration",
-            "contextPath": "/int/",
+            "contextPath": "${{ steps.base.outputs.href }}",
             "gitRef": "${{ github.ref_name }}",
             "gitSha": "${{ github.sha }}",
             "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -39,8 +51,11 @@ jobs:
           }
           JSON
 
-      - name: Build (base-href=/int/)
-        run: npx ng build --configuration production --base-href /int/
+      - name: Inject SPA base into 404 fallback
+        run: sed -i "s#__SPA_BASE__#${{ steps.base.outputs.href }}#g" public/404.html
+
+      - name: Build
+        run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
 
       # SPA fallback: copy index.html to 404.html would break other contexts, so we ship
       # our own public/404.html (context-preserving) which is emitted by the build assets.

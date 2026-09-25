@@ -28,12 +28,19 @@ jobs:
           npx ng build --configuration development >/dev/null # fast type/build check
           npx ng test # Vitest builder runs once and exits under CI
 
+      - name: Resolve base prefix
+        id: base
+        run: |
+          PREFIX="${{ vars.PAGES_BASE_PREFIX }}"
+          if [ -z "$PREFIX" ]; then PREFIX="/${{ github.event.repository.name }}/"; fi
+          echo "href=${PREFIX}pr-${{ github.event.pull_request.number }}/" >> "$GITHUB_OUTPUT"
+
       - name: Write build-info.json
         run: |
           cat > public/build-info.json <<JSON
           {
             "environment": "pr-preview",
-            "contextPath": "/pr-${{ github.event.pull_request.number }}/",
+            "contextPath": "${{ steps.base.outputs.href }}",
             "gitRef": "${{ github.head_ref }}",
             "gitSha": "${{ github.event.pull_request.head.sha }}",
             "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -41,8 +48,11 @@ jobs:
           }
           JSON
 
-      - name: Build (base-href=/pr-<n>/)
-        run: npx ng build --configuration production --base-href "/pr-${{ github.event.pull_request.number }}/"
+      - name: Inject SPA base into 404 fallback
+        run: sed -i "s#__SPA_BASE__#${{ steps.base.outputs.href }}#g" public/404.html
+
+      - name: Build
+        run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
 
       - name: Record PR number for the deploy workflow
         run: echo "${{ github.event.pull_request.number }}" > ./dist/ghpages-context-demo/browser/.pr-number

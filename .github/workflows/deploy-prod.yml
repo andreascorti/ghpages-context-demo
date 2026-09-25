@@ -27,12 +27,19 @@ jobs:
 
       - run: npm ci
 
+      - name: Resolve base prefix
+        id: base
+        run: |
+          PREFIX="${{ vars.PAGES_BASE_PREFIX }}"
+          if [ -z "$PREFIX" ]; then PREFIX="/${{ github.event.repository.name }}/"; fi
+          echo "href=$PREFIX" >> "$GITHUB_OUTPUT"
+
       - name: Write build-info.json
         run: |
           cat > public/build-info.json <<JSON
           {
             "environment": "production",
-            "contextPath": "/",
+            "contextPath": "${{ steps.base.outputs.href }}",
             "gitRef": "${{ github.ref_name }}",
             "gitSha": "${{ github.sha }}",
             "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -40,8 +47,11 @@ jobs:
           }
           JSON
 
-      - name: Build (base-href=/)
-        run: npx ng build --configuration production --base-href /
+      - name: Inject SPA base into 404 fallback
+        run: sed -i "s#__SPA_BASE__#${{ steps.base.outputs.href }}#g" public/404.html
+
+      - name: Build (production lives at the site root = base prefix)
+        run: npx ng build --configuration production --base-href "${{ steps.base.outputs.href }}"
 
       - name: Deploy to gh-pages root
         uses: peaceiris/actions-gh-pages@v4

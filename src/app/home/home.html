@@ -1,0 +1,47 @@
+<section class="card" [attr.data-env]="environmentLabel()">
+  <span class="badge">{{ environmentLabel() }}</span>
+  <h1>GitHub Pages context-path demo</h1>
+  <p class="lead">
+    This single Angular build is deployed to multiple context paths on one GitHub Pages site. It
+    reads its own <code>&lt;base href&gt;</code> to prove which context served it. Use the nav above
+    and refresh on a child page to confirm deep links survive under this context.
+  </p>
+
+  <dl class="kv">
+    <dt>Base href</dt>
+    <dd>
+      <code>{{ baseHref() }}</code>
+    </dd>
+
+    <dt>Detected environment</dt>
+    <dd>{{ environmentLabel() }}</dd>
+
+    @if (build(); as b) {
+      <dt>Context path</dt>
+      <dd>
+        <code>{{ b.contextPath }}</code>
+      </dd>
+
+      <dt>Git ref</dt>
+      <dd>
+        <code>{{ b.gitRef }}</code>
+      </dd>
+
+      <dt>Commit</dt>
+      <dd>
+        <code>{{ b.gitSha }}</code>
+      </dd>
+
+      @if (b.prNumber) {
+        <dt>Pull request</dt>
+        <dd>#{{ b.prNumber }}</dd>
+      }
+
+      <dt>Built at</dt>
+      <dd>{{ b.builtAt }}</dd>
+    } @else {
+      <dt>Build info</dt>
+      <dd>none (local dev or root fallback)</dd>
+    }
+  </dl>
+</section>

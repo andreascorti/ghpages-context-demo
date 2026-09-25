@@ -21,6 +21,12 @@ jobs:
   deploy-preview:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    # Maintainer approval gate: this environment must have "Required reviewers" configured
+    # in Settings -> Environments -> pr-preview. The job PAUSES here until a maintainer
+    # approves the run in the Actions UI, so no PR (including forks) deploys unreviewed.
+    environment:
+      name: pr-preview
+      url: ${{ steps.url.outputs.url }}
     steps:
       - name: Download preview artifact
         uses: actions/download-artifact@v4
@@ -49,14 +55,16 @@ jobs:
       - name: Compute preview URL
         id: url
         run: |
-          # <owner>.github.io/<repo>/pr-<n>/ for project pages; <owner>.github.io/pr-<n>/ for user pages.
+          # Host + base prefix mirror the build config so the commented link is always correct:
+          #   default (project page): https://<owner>.github.io/<repo>/pr-<n>/
+          #   custom domain: set repo vars PAGES_HOST=https://your.domain and PAGES_BASE_PREFIX=/
           OWNER="${{ github.repository_owner }}"
           REPO="${{ github.event.repository.name }}"
-          if [ "$REPO" = "${OWNER}.github.io" ]; then
-            echo "url=https://${OWNER}.github.io/pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
-          else
-            echo "url=https://${OWNER}.github.io/${REPO}/pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
-          fi
+          HOST="${{ vars.PAGES_HOST }}"
+          PREFIX="${{ vars.PAGES_BASE_PREFIX }}"
+          if [ -z "$HOST" ]; then HOST="https://${OWNER}.github.io"; fi
+          if [ -z "$PREFIX" ]; then PREFIX="/${REPO}/"; fi
+          echo "url=${HOST}${PREFIX}pr-${{ steps.pr.outputs.number }}/" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview link on the PR (create or update)
         uses: marocchino/sticky-pull-request-comment@v2
