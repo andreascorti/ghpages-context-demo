@@ -1,8 +1,8 @@
 {
   "environment": "pr-preview",
-  "contextPath": "/ghpages-context-demo/pr-1/",
+  "contextPath": "/ghpages-context-demo/pr-2/",
   "gitRef": "feat/routing-and-project-page-base",
-  "gitSha": "fc5d76275e63a6518fb19a255f152ab4e2091431",
-  "builtAt": "2026-09-25T09:07:25Z",
-  "prNumber": "1"
+  "gitSha": "030821d373771190c6043d73e79b437869b3a1f4",
+  "builtAt": "2026-09-25T09:24:12Z",
+  "prNumber": "2"
 }
