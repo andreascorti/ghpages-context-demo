@@ -1,0 +1,8 @@
+{
+  "environment": "pr-preview",
+  "contextPath": "/ghpages-context-demo/pr-3/",
+  "gitRef": "example/preview-label",
+  "gitSha": "7a51b21b2313581e0a4e6bfffd5b409e63dfcc2c",
+  "builtAt": "2026-09-25T12:58:54Z",
+  "prNumber": "3"
+}
