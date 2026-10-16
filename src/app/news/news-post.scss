@@ -1,0 +1,99 @@
+.card {
+  width: min(720px, 100%);
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 2rem;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  margin-bottom: 1.25rem;
+}
+
+.muted {
+  color: #94a3b8;
+}
+
+.error {
+  color: #f87171;
+}
+
+.post-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.post-head h1 {
+  margin: 0;
+}
+
+.post-head time {
+  color: #64748b;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.75rem 0 1.5rem;
+}
+
+.pill {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.body {
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
+.body :where(h2, h3) {
+  margin-top: 1.6rem;
+}
+
+.body code {
+  background: #0f172a;
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.body blockquote {
+  margin: 1.2rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 3px solid #2563eb;
+  background: #0f172a;
+  border-radius: 0 8px 8px 0;
+  color: #cbd5e1;
+}
+
+.body a {
+  color: #93c5fd;
+}

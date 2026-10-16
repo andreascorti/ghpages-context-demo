@@ -16,12 +16,12 @@ describe('App shell', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should render the nav with Home, About, Items', () => {
+  it('should render the nav with Home, About, Items, News', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('nav a')).map(
       (a) => a.textContent?.trim(),
     );
-    expect(links).toEqual(['Home', 'About', 'Items']);
+    expect(links).toEqual(['Home', 'About', 'Items', 'News']);
   });
 });
