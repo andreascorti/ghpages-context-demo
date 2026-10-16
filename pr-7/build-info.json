@@ -1,0 +1,8 @@
+{
+  "environment": "pr-preview",
+  "contextPath": "/ghpages-context-demo/pr-7/",
+  "gitRef": "fix/activate-issue-form",
+  "gitSha": "3898db1479ec31db6ed954090db2d34a4369cd8d",
+  "builtAt": "2026-10-16T12:23:28Z",
+  "prNumber": "7"
+}
