@@ -25,8 +25,14 @@ concurrency:
 
 jobs:
   generate:
-    # Only act on issues carrying the news-article label.
-    if: contains(join(github.event.issue.labels.*.name, ','), 'news-article')
+    # Act when the issue carries the news-article label OR was created from the article
+    # form. The label alone is unreliable: GitHub only auto-applies a form's `labels:` if
+    # that label already EXISTS in the repo, so on a fresh repo the issue opens unlabeled
+    # and a label-only gate skips. The form's body always contains "### Body (Markdown)",
+    # so we accept that as a fallback signal.
+    if: >-
+      contains(join(github.event.issue.labels.*.name, ','), 'news-article') ||
+      contains(github.event.issue.body, '### Body (Markdown)')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout default branch (for the scripts)
@@ -81,7 +87,40 @@ jobs:
             sed -i "0,/^---$/!{/^tags:/a thumbnail: news-data/assets/${SLUG}.${EXT}
             }" "staging/_posts/${SLUG}.md" || true
           fi
-          echo "ext=${EXT}" >> "$GITHUB_OUTPUT"
+
+      - name: Download body-embedded images and finalize extensions
+        env:
+          SLUG: ${{ steps.parse.outputs.slug }}
+        run: |
+          set -euo pipefail
+          POST="staging/_posts/${SLUG}.md"
+          COUNT=$(node -e 'const r=require("./parse-result.json");console.log((r.bodyImages||[]).length)')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No body-embedded images."; exit 0
+          fi
+          echo "Localizing ${COUNT} body image(s)."
+          for i in $(seq 0 $((COUNT-1))); do
+            URL=$(node -e "console.log(require('./parse-result.json').bodyImages[$i].url)")
+            FILE=$(node -e "console.log(require('./parse-result.json').bodyImages[$i].file)")   # <slug>-<n>.<hintExt>
+            BASENAME="${FILE%.*}"                                                               # <slug>-<n>
+            HINT_EXT="${FILE##*.}"
+            curl -sSL -D h.txt -o img.bin "$URL"
+            CT=$(grep -i '^content-type:' h.txt | tail -1 | tr -d '\r' | awk '{print tolower($2)}')
+            case "$CT" in
+              image/png) EXT=png ;;
+              image/jpeg) EXT=jpg ;;
+              image/webp) EXT=webp ;;
+              image/gif) EXT=gif ;;
+              image/avif) EXT=avif ;;
+              image/svg+xml) EXT=svg ;;
+              *) EXT="$HINT_EXT" ;;
+            esac
+            cp img.bin "staging/assets/${BASENAME}.${EXT}"
+            # If the sniffed extension differs from the parser's hint, fix the body link too.
+            if [ "$EXT" != "$HINT_EXT" ]; then
+              sed -i "s#news-data/assets/${BASENAME}.${HINT_EXT}#news-data/assets/${BASENAME}.${EXT}#g" "$POST"
+            fi
+          done
 
       - name: Open PR into news-content
         env:

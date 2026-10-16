@@ -5,16 +5,19 @@
 //   ### <Label>
 //   <value>
 // (with "_No response_" for empty optional fields). This script extracts the fields,
-// derives a slug, assembles YAML frontmatter + the Markdown body, and prints a JSON
-// result describing what to write — including the uploaded image URL to download.
+// derives a slug, assembles YAML frontmatter + the Markdown body, LOCALIZES body-embedded
+// image links to news-data/assets, and prints a JSON result describing what to write —
+// including the thumbnail URL and the body images to download.
 //
-// Deterministic and dependency-free: assembly, not language translation, so a post is
-// reproducible from its issue and no model/secret is in the publish path.
+// Deterministic and dependency-free, NO network I/O: it only detects and rewrites links;
+// the workflow owns downloading (with content-type sniffing). This keeps assembly, not
+// language translation, so a post is reproducible from its issue and no model/secret is in
+// the publish path.
 //
 // Usage: node parse-issue.mjs <issueBodyFile> <outDir>
 //   issueBodyFile  path to a file containing the raw issue body
 //   outDir         directory to write <slug>.md into
-// Prints JSON: { slug, mdPath, imageUrl|null, imageExtHint|null }
+// Prints JSON: { slug, mdPath, imageUrl|null, imageExtHint|null, bodyImages:[{url,file}] }
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -70,7 +73,48 @@ const tags = (f['tags'] || '')
 
 const excerpt = (f['excerpt'] || '').trim().replace(/\n+/g, ' ');
 const author = (f['author (optional)'] || f['author'] || '').trim();
-const bodyMd = (f['body (markdown)'] || '').trim();
+let bodyMd = (f['body (markdown)'] || '').trim();
+
+// --- Body image localization ---------------------------------------------------------
+// Authors embed images in the body as GitHub inserts them: ![alt](https://github.com/
+// user-attachments/...) or <img src="...">. Published verbatim those load from GitHub, not
+// from news-data/assets, which breaks the self-contained-news-content guarantee. So we
+// detect every body image, assign it a stable local name (<slug>-<n>.<ext>), REWRITE the
+// link to the local news-data/assets path, and hand the workflow a download list. The
+// extension is a hint only; the workflow finalizes it from the downloaded content-type.
+const bodyImages = [];
+bodyMd = localizeBodyImages(bodyMd);
+
+function localizeBodyImages(body) {
+  let n = 0;
+  const seen = new Map(); // dedupe: same URL reused in the body -> one asset
+
+  const assign = (url) => {
+    if (seen.has(url)) return seen.get(url);
+    n += 1;
+    const ext = extGuess(url) || 'png';
+    const file = `${slug}-${n}.${ext}`;
+    const localPath = `news-data/assets/${file}`;
+    bodyImages.push({ url, file });
+    seen.set(url, localPath);
+    return localPath;
+  };
+
+  // Markdown images: ![alt](url "optional title")
+  body = body.replace(/(!\[[^\]]*\]\()\s*([^)\s]+)([^)]*\))/g, (m, pre, url, post) => {
+    if (!/^https?:\/\//i.test(url)) return m; // leave already-local / relative links
+    return `${pre}${assign(url)}${post}`;
+  });
+
+  // HTML <img src="url">
+  body = body.replace(/(<img[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi, (m, pre, url, post) => {
+    if (!/^https?:\/\//i.test(url)) return m;
+    return `${pre}${assign(url)}${post}`;
+  });
+
+  return body;
+}
+// --------------------------------------------------------------------------------------
 
 // Extract the first image URL from the Thumbnail field (GitHub inserts markdown or an
 // <img>/bare URL for an upload). We download it in the workflow and name it <slug>.<ext>.
@@ -121,4 +165,4 @@ mkdirSync(outDir, { recursive: true });
 const mdPath = join(outDir, `${slug}.md`);
 writeFileSync(mdPath, md);
 
-console.log(JSON.stringify({ slug, mdPath, imageUrl, imageExtHint }));
+console.log(JSON.stringify({ slug, mdPath, imageUrl, imageExtHint, bodyImages }));
