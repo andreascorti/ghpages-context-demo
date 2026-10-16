@@ -1,8 +1,8 @@
 {
   "environment": "production",
   "contextPath": "/ghpages-context-demo/",
-  "gitRef": "release/1",
-  "gitSha": "9a36bfc8c90505b63e1a1b71dfbe27769e67933b",
-  "builtAt": "2026-09-25T09:29:14Z",
+  "gitRef": "release/2",
+  "gitSha": "7d987c1cd221bdb71099d0b5154b9ab01b46116f",
+  "builtAt": "2026-10-16T12:19:41Z",
   "prNumber": ""
 }
