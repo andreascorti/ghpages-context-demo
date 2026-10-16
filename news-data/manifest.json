@@ -1,0 +1,38 @@
+[
+  {
+    "slug": "angular-22-upgrade",
+    "title": "Upgrading the portal to Angular 22",
+    "date": "2026-10-14",
+    "tags": [
+      "Release",
+      "Dependency"
+    ],
+    "excerpt": "What changed in the Angular 22 bump and why the migration stayed low-risk for downstream apps.",
+    "searchText": "upgrading the portal to angular 22 what changed in the angular 22 bump and why the migration stayed low-risk for downstream apps. the portal moved to angular 22 this cycle. this post walks through what changed and why the migration stayed low risk for the apps that depend on us. what changed standalone components are now the default; the last few shells were removed. the new control flow blocks ( , ) replaced the structural directives across the catalog. peer dependency ranges were widened so downstream apps can adopt on their own cadence. why it was low risk the public api surface did not change. every component kept its selector and inputs, so consuming apps recompile without code edits. the one thing to watch is the peer dependency overrides block if you pin a snapshot build. tip: run and let the schematics handle the control flow migration for you.",
+    "thumbnail": "news-data/assets/angular-22-upgrade.png"
+  },
+  {
+    "slug": "news-catalog-reference",
+    "title": "A runtime news catalog with no rebuild",
+    "date": "2026-10-10",
+    "tags": [
+      "Architecture",
+      "Pattern"
+    ],
+    "excerpt": "How the portal serves editorial posts from a static manifest without ever rebuilding the SPA.",
+    "searchText": "a runtime news catalog with no rebuild how the portal serves editorial posts from a static manifest without ever rebuilding the spa. editorial posts should not ride the application release train. a new post is a content change, not a code change — so it must not require an or a redeploy of the spa. the shape the angular app ships exactly one parameterized route, , and never learns about individual posts at build time. the live set of posts lives in a static that a content only pipeline regenerates on each publish. the feed loads once and renders preview cards. each card links to , which lazily fetches . new posts appear because the manifest changed, not because the app recompiled. why this works on github pages the content pipeline publishes only the folder onto the branch (keep files semantics), leaving the application build output untouched. one app, many content snapshots.",
+    "thumbnail": "news-data/assets/news-catalog-reference.svg"
+  },
+  {
+    "slug": "search-without-a-server",
+    "title": "Client-side search without an index service",
+    "date": "2026-10-02",
+    "tags": [
+      "Architecture",
+      "Search"
+    ],
+    "excerpt": "The CI build step is the index step: a flattened searchText field turns the manifest into the search corpus.",
+    "searchText": "client-side search without an index service the ci build step is the index step: a flattened searchtext field turns the manifest into the search corpus. there is no backend here — no elasticsearch, no algolia, no database doing a . everything is static files on . so how do you search? the build step is the index step the content pipeline already parses every markdown post to render its html body. in the same pass it flattens the post to plain text — headings plus prose, stripped of markup — and writes it into a field on each manifest entry. that turns the manifest into the search corpus. the browser fetches it once for the feed and searches it entirely in memory. the \"index with no index service\" is just a static json artifact the ci emits. scaling up later baseline: substring match over , , and . drop in upgrade: hand the same array to a tiny client lib (fuse.js / minisearch) for typo tolerant ranked results. at thousands of docs: emit a prebuilt serialized index as a second artifact. search never touches the per post payloads — it only reads the manifest, so it costs zero network per keystroke.",
+    "thumbnail": "news-data/assets/search-without-a-server.svg"
+  }
+]
