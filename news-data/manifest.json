@@ -1,1 +1,49 @@
-[]
+[
+  {
+    "slug": "news-from-gh-issue",
+    "title": "Trying out new way to author articles via github issues",
+    "date": "2026-10-16",
+    "tags": [
+      "Architecture"
+    ],
+    "excerpt": "How a news post goes from a GitHub issue to live on the portal — a form, an auto-generated Markdown PR, a review gate, and a content-only deploy that never rebuilds the app.",
+    "searchText": "trying out new way to author articles via github issues how a news post goes from a github issue to live on the portal — a form, an auto-generated markdown pr, a review gate, and a content-only deploy that never rebuilds the app. publishing a post to the portal takes four steps, and none of them rebuild the application. 1. fill the form an author opens a 📰 new article issue and fills in the title, date, tags, excerpt, body, and an optional thumbnail. no markdown files, no git, no local setup. 2. automation generates the markdown on submit, a workflow turns the issue into a well formatted file with yaml frontmatter, downloads the uploaded image, and opens a pull request into the branch . the author gets a comment linking to that pr. 3. a maintainer reviews and merges the pr is the human gate. a maintainer reads the generated markdown, tweaks if needed, and merges. the branch has its own merge policy, kept separate from the application's. 4. the post goes live — no app rebuild merging triggers a content only pipeline that rebuilds a static (the feed index and the search corpus) and publishes the posts into the site's folder. the angular app, deployed once, simply fetches that folder at runtime. why it works this way no rebuild on publish. a new post is a content change, not a code change. the app ships one parameterized route; new posts appear because the manifest changed, not because the app recompiled. search with no server. the same build step that assembles a post also flattens it into a field, so the browser searches the manifest entirely in memory — no index service, no backend. any image format. png, jpg, webp, gif, or svg all work; the card and banner crop them to fit.",
+    "thumbnail": "news-data/assets/news-from-gh-issue.png"
+  },
+  {
+    "slug": "angular-22-upgrade",
+    "title": "Upgrading the portal to Angular 22",
+    "date": "2026-10-14",
+    "tags": [
+      "Release",
+      "Dependency"
+    ],
+    "excerpt": "What changed in the Angular 22 bump and why the migration stayed low-risk for downstream apps.",
+    "searchText": "upgrading the portal to angular 22 what changed in the angular 22 bump and why the migration stayed low-risk for downstream apps. the portal moved to angular 22 this cycle. this post walks through what changed and why the migration stayed low risk for the apps that depend on us. what changed standalone components are now the default; the last few shells were removed. the new control flow blocks ( , ) replaced the structural directives across the catalog. peer dependency ranges were widened so downstream apps can adopt on their own cadence. why it was low risk the public api surface did not change. every component kept its selector and inputs, so consuming apps recompile without code edits. the one thing to watch is the peer dependency overrides block if you pin a snapshot build. tip: run and let the schematics handle the control flow migration for you.",
+    "thumbnail": "news-data/assets/angular-22-upgrade.png"
+  },
+  {
+    "slug": "news-catalog-reference",
+    "title": "A runtime news catalog with no rebuild",
+    "date": "2026-10-10",
+    "tags": [
+      "Architecture",
+      "Pattern"
+    ],
+    "excerpt": "How the portal serves editorial posts from a static manifest without ever rebuilding the SPA.",
+    "searchText": "a runtime news catalog with no rebuild how the portal serves editorial posts from a static manifest without ever rebuilding the spa. editorial posts should not ride the application release train. a new post is a content change, not a code change — so it must not require an or a redeploy of the spa. the shape the angular app ships exactly one parameterized route, , and never learns about individual posts at build time. the live set of posts lives in a static that a content only pipeline regenerates on each publish. the feed loads once and renders preview cards. each card links to , which lazily fetches . new posts appear because the manifest changed, not because the app recompiled. why this works on github pages the content pipeline publishes only the folder onto the branch (keep files semantics), leaving the application build output untouched. one app, many content snapshots.",
+    "thumbnail": "news-data/assets/news-catalog-reference.svg"
+  },
+  {
+    "slug": "search-without-a-server",
+    "title": "Client-side search without an index service",
+    "date": "2026-10-02",
+    "tags": [
+      "Architecture",
+      "Search"
+    ],
+    "excerpt": "The CI build step is the index step: a flattened searchText field turns the manifest into the search corpus.",
+    "searchText": "client-side search without an index service the ci build step is the index step: a flattened searchtext field turns the manifest into the search corpus. there is no backend here — no elasticsearch, no algolia, no database doing a . everything is static files on . so how do you search? the build step is the index step the content pipeline already parses every markdown post to render its html body. in the same pass it flattens the post to plain text — headings plus prose, stripped of markup — and writes it into a field on each manifest entry. that turns the manifest into the search corpus. the browser fetches it once for the feed and searches it entirely in memory. the \"index with no index service\" is just a static json artifact the ci emits. scaling up later baseline: substring match over , , and . drop in upgrade: hand the same array to a tiny client lib (fuse.js / minisearch) for typo tolerant ranked results. at thousands of docs: emit a prebuilt serialized index as a second artifact. search never touches the per post payloads — it only reads the manifest, so it costs zero network per keystroke.",
+    "thumbnail": "news-data/assets/search-without-a-server.svg"
+  }
+]
