@@ -1,0 +1,8 @@
+{
+  "environment": "pr-preview",
+  "contextPath": "/ghpages-context-demo/pr-10/",
+  "gitRef": "feat/news-body-images",
+  "gitSha": "752e16bea1552a7398ea4e323f8d2f5d880c25fe",
+  "builtAt": "2026-10-16T13:03:50Z",
+  "prNumber": "10"
+}
