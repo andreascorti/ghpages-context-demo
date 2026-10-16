@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p staging/_posts staging/assets
-          RESULT=$(node news-content-scaffold/scripts/parse-issue.mjs issue-body.md staging/_posts)
+          RESULT=$(node .github/scripts/parse-issue.mjs issue-body.md staging/_posts)
           echo "result=$RESULT" >> "$GITHUB_OUTPUT"
           echo "$RESULT" > parse-result.json
           echo "slug=$(node -e 'console.log(require("./parse-result.json").slug)')" >> "$GITHUB_OUTPUT"
