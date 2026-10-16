@@ -1,0 +1,8 @@
+{
+  "environment": "pr-preview",
+  "contextPath": "/ghpages-context-demo/pr-6/",
+  "gitRef": "feat/news-catalog",
+  "gitSha": "adc6c137c9e5daf61c6fdf920289e75f8bd69994",
+  "builtAt": "2026-10-16T12:18:54Z",
+  "prNumber": "6"
+}
