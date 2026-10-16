@@ -1,0 +1,101 @@
+name: 📰 New article
+description: Submit a news article for the portal. On submit, a workflow generates the Markdown and opens a review PR.
+title: '[article] <short title>'
+labels: ['news-article']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in the fields below. When you submit, an automation turns this into a
+        well-formatted Markdown post and opens a **pull request** into the `news-content`
+        branch for a maintainer to review. Merging that PR publishes the post live.
+
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: The article headline, shown on the card and the post page.
+      placeholder: Upgrading the portal to Angular 22
+    validations:
+      required: true
+
+  - type: input
+    id: slug
+    attributes:
+      label: Slug (optional)
+      description: URL segment, e.g. `angular-22-upgrade`. Leave blank to derive it from the title.
+      placeholder: angular-22-upgrade
+    validations:
+      required: false
+
+  - type: input
+    id: date
+    attributes:
+      label: Publication date
+      description: ISO date (YYYY-MM-DD). Leave blank to use today.
+      placeholder: 2026-10-14
+    validations:
+      required: false
+
+  - type: dropdown
+    id: tags
+    attributes:
+      label: Tags
+      description: Pick one or more categories. These drive the feed filters.
+      multiple: true
+      options:
+        - Release
+        - Dependency
+        - Architecture
+        - Pattern
+        - Search
+        - Announcement
+        - Tutorial
+    validations:
+      required: true
+
+  - type: textarea
+    id: excerpt
+    attributes:
+      label: Excerpt
+      description: One or two sentences shown on the feed card and used for search.
+      placeholder: What changed in the Angular 22 bump and why the migration stayed low-risk.
+    validations:
+      required: true
+
+  - type: textarea
+    id: body
+    attributes:
+      label: Body (Markdown)
+      description: >
+        The article content in Markdown. Headings, lists, links, code blocks, and
+        emphasis are all supported. Do NOT include a top-level `#` title — the title
+        above becomes the page heading automatically.
+      placeholder: |
+        The portal moved to **Angular 22** this cycle.
+
+        ## What changed
+
+        - Standalone components are the default now.
+        - New control-flow blocks replaced the structural directives.
+    validations:
+      required: true
+
+  - type: textarea
+    id: thumbnail
+    attributes:
+      label: Thumbnail image
+      description: >
+        Drag-and-drop an image here (PNG, JPG, WebP, GIF, or SVG). GitHub uploads it and
+        inserts a link — leave that link in place. The workflow downloads the image and
+        stores it alongside the post. Optional but recommended.
+    validations:
+      required: false
+
+  - type: input
+    id: author
+    attributes:
+      label: Author (optional)
+      placeholder: Platform Team
+    validations:
+      required: false

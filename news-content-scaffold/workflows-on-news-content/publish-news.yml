@@ -1,0 +1,81 @@
+name: Publish news → gh-pages
+
+# Lives ON the orphan `news-content` branch. A merge of an article PR into news-content
+# pushes to this branch and fires this workflow. It builds manifest.json from _posts/ and
+# publishes _posts/ + assets/ + manifest.json into gh-pages:/news-data/ — WITHOUT touching
+# the application build (keep_files semantics: we only replace the news-data/ subtree).
+#
+# No `ng build` runs here. Publishing a post is a content change, not an app rebuild.
+
+on:
+  push:
+    branches: [news-content]
+  workflow_dispatch: # allow a manual republish
+
+permissions:
+  contents: write # push to gh-pages
+
+concurrency:
+  # Share the gh-pages write lock with the app deploys so news and app never race the branch.
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout news-content (source)
+        uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Build manifest.json from _posts/
+        run: |
+          set -euo pipefail
+          mkdir -p out/news-data/posts out/news-data/assets
+          # Posts and assets are published verbatim; the .md IS the document (rendered client-side).
+          if ls _posts/*.md >/dev/null 2>&1; then
+            cp _posts/*.md out/news-data/posts/
+          fi
+          if [ -d assets ] && ls assets/* >/dev/null 2>&1; then
+            cp -R assets/. out/news-data/assets/
+          fi
+          # The build step is the index step: manifest = feed index + searchText corpus.
+          node scripts/build-manifest.mjs out/news-data/posts out/news-data/manifest.json news-data/assets
+          echo "Published files:"; find out/news-data -type f | sort
+
+      - name: Publish to gh-pages:/news-data (keep_files)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          rm -rf gh-pages-publish
+          if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch "$REMOTE" gh-pages-publish
+          else
+            # gh-pages may not exist before the first app deploy; create it so news can go live standalone.
+            git clone "$REMOTE" gh-pages-publish
+            (cd gh-pages-publish && git checkout --orphan gh-pages && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          touch gh-pages-publish/.nojekyll
+
+          # Replace ONLY the news-data/ subtree. The app (root, /int/, /pr-*/) is untouched —
+          # this is the same scoped-folder guarantee the app deploys use for their own folders.
+          rm -rf gh-pages-publish/news-data
+          mkdir -p gh-pages-publish/news-data
+          cp -R out/news-data/. gh-pages-publish/news-data/
+
+          cd gh-pages-publish
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No news changes to publish."
+          else
+            git commit -m "news: publish ${GITHUB_SHA} → /news-data/"
+            git push origin gh-pages
+          fi

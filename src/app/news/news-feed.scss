@@ -1,0 +1,170 @@
+.card {
+  width: min(720px, 100%);
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 2rem;
+}
+
+h1 {
+  margin-top: 0;
+}
+
+.lede {
+  color: #94a3b8;
+}
+
+.muted {
+  color: #94a3b8;
+}
+
+.error {
+  color: #f87171;
+}
+
+code {
+  background: #0f172a;
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.search {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 1rem;
+}
+
+.search:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.tag.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.count {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.feed {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.post-link {
+  display: flex;
+  gap: 1rem;
+  text-decoration: none;
+  color: inherit;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.post-link:hover {
+  border-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.thumb {
+  flex: 0 0 auto;
+  width: 128px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+}
+
+.post-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .post-link {
+    flex-direction: column;
+  }
+  .thumb {
+    width: 100%;
+    height: 140px;
+  }
+}
+
+.post-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.post-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.post-head time {
+  color: #64748b;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.excerpt {
+  color: #cbd5e1;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pill {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #334155;
+  color: #e2e8f0;
+}
