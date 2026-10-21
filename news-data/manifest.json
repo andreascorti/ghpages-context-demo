@@ -1,5 +1,16 @@
 [
   {
+    "slug": "my-news",
+    "title": "My news",
+    "date": "2026-10-21",
+    "tags": [
+      "Announcement"
+    ],
+    "excerpt": "bla bla",
+    "searchText": "my news bla bla this is a new news heading 2 kaklaskln a fg g gh gh",
+    "thumbnail": "news-data/assets/my-news.webp"
+  },
+  {
     "slug": "news-from-gh-issue",
     "title": "Trying out new way to author articles via github issues",
     "date": "2026-10-16",
